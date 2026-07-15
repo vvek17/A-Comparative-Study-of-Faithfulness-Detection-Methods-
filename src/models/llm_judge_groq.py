@@ -19,7 +19,8 @@ from tqdm import tqdm
 
 from src.models.llm_judge import PROMPT_TEMPLATE, JudgeResult, _parse_verdict
 
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "llama-3.1-8b-instant"
+GROQ_MODEL_LARGE = "llama-3.3-70b-versatile"  # higher quality; separate daily quota bucket
 
 
 def run_llm_judge_groq(

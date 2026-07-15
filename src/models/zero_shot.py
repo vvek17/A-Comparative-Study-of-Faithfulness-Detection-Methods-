@@ -22,6 +22,15 @@ from transformers import pipeline
 from tqdm import tqdm
 
 
+def _pipeline_device():
+    """HF pipeline device arg: CUDA index, 'mps', or -1 (CPU)."""
+    if torch.cuda.is_available():
+        return 0
+    if torch.backends.mps.is_available():
+        return "mps"
+    return -1
+
+
 @dataclass
 class ZeroShotResult:
     predictions: list[int]
@@ -42,7 +51,7 @@ def run_zero_shot_nli(
     batch_size: int = 16,
 ) -> ZeroShotResult:
     """Document-level zero-shot NLI over the whole (knowledge, answer) pair."""
-    device = 0 if torch.cuda.is_available() else -1
+    device = _pipeline_device()
     classifier = pipeline(
         "text-classification", model=model_name, device=device, top_k=None
     )
@@ -80,7 +89,7 @@ def run_summac_zero(
     answer sentence is, on balance, contradicted rather than entailed by the
     single best-matching knowledge sentence.
     """
-    device = 0 if torch.cuda.is_available() else -1
+    device = _pipeline_device()
     classifier = pipeline(
         "text-classification", model=model_name, device=device, top_k=None
     )

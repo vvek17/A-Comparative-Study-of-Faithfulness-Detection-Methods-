@@ -175,16 +175,23 @@ How it works:
 - Response parsed to a binary faithful/hallucinated label
 
 Two backends, same prompt/rubric (`src/models/llm_judge.py::PROMPT_TEMPLATE`):
-- **Groq (free)** -- `src/models/llm_judge_groq.py`, `llama-3.3-70b-versatile` via
-  Groq's free API (get a key at console.groq.com). No cost, so it can run on
-  larger samples than the paid option -- but the free tier has a **daily
-  token quota (100k tokens/day)** in addition to the ~12,000/min and 1,000
-  requests/day limits; a few hundred judge calls in one day can exhaust it.
-  `run_llm_judge_groq()` catches this and returns whatever it completed
-  instead of losing the run (check `len(result.predictions)` against your
-  requested `limit`) -- `notebooks/03_llm_judge.ipynb` paces calls to stay
-  under the per-minute limit, but the daily cap needs multiple days (or a
-  paid Groq tier) to run the full 10,000-example set.
+- **Groq (free)** -- `src/models/llm_judge_groq.py`, defaults to
+  `llama-3.1-8b-instant` via Groq's free API (get a key at console.groq.com).
+  No cost, so it can run on larger samples than the paid option -- but the
+  free tier has a **daily token quota per model** (100k tokens/day) in
+  addition to the ~12,000/min and 1,000 requests/day limits; a few hundred
+  judge calls in one day can exhaust a single model's quota. The quota is
+  tracked **separately per model** -- `llama-3.3-70b-versatile`'s quota ran
+  out from earlier testing the same day, but `llama-3.1-8b-instant` still had
+  headroom and completed cleanly, which is why it's the default. Pass
+  `model="llama-3.3-70b-versatile"` explicitly once that model's quota resets
+  if you want the larger model's judgments instead.
+  `run_llm_judge_groq()` catches a mid-run quota exhaustion and returns
+  whatever it completed instead of losing the run (check
+  `len(result.predictions)` against your requested `limit`) --
+  `notebooks/03_llm_judge.ipynb` / `run_judge.py` pace calls to stay under
+  the per-minute limit, but the full 10,000-example set needs multiple days
+  (or a paid Groq tier) to clear the daily cap.
 - **Claude (paid)** -- `src/models/llm_judge.py`, requires `ANTHROPIC_API_KEY`
   and costs money per call; not auto-run, start with a small sample.
 
@@ -200,12 +207,16 @@ Output:
   - Reasoning chain
 ```
 
-Result (Groq / llama-3.3-70b-versatile, n=20 validation sample -- see
-`outputs/tables/llm_judge_groq_results.json`): 85.0% accuracy, F1 = 0.842,
-comfortably above the zero-shot NLI baseline (68.8%). A 300-example run was
-attempted but hit the daily token quota at 260/300 examples; treat 85% as a
-small-sample directional estimate, not a final number, until run at larger
-scale across multiple days or on a paid tier.
+Results (see `outputs/tables/llm_judge_groq_results.json`), both comfortably
+above the zero-shot NLI baseline (68.8%):
+- `llama-3.3-70b-versatile`, n=20: 85.0% accuracy, F1 = 0.842
+- `llama-3.1-8b-instant`, n=50 (all 50 completed cleanly): 86.0% accuracy,
+  F1 = 0.844, **precision = 1.00** (zero false hallucination flags), recall
+  0.731 (misses ~27% of actual hallucinations)
+
+Both are small-sample directional estimates, not final numbers -- run at
+larger scale (spread across multiple days, given the daily quota) before
+citing these in the report.
 
 ---
 

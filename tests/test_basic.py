@@ -72,7 +72,7 @@ def test_groq_judge_requires_api_key(monkeypatch):
 
 
 def test_groq_model_constant():
-    assert GROQ_MODEL == "llama-3.3-70b-versatile"
+    assert GROQ_MODEL == "llama-3.1-8b-instant"
 
 
 def test_print_report_single_class_sample(capsys):
