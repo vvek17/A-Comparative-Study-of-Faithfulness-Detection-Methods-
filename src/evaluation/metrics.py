@@ -49,7 +49,7 @@ def print_report(labels: list[int], predictions: list[int], title: str = "") -> 
     print(f"Recall:    {m.recall:.4f}")
     print(f"F1:        {m.f1:.4f}")
     print("\nConfusion matrix (rows=true, cols=pred) [0=faithful, 1=hallucinated]:")
-    print(confusion_matrix(labels, predictions))
+    print(confusion_matrix(labels, predictions, labels=[0, 1]))
     print("\n" + classification_report(
-        labels, predictions, target_names=["faithful", "hallucinated"], zero_division=0
+        labels, predictions, labels=[0, 1], target_names=["faithful", "hallucinated"], zero_division=0
     ))

@@ -7,8 +7,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.data.preprocessor import build_finetune_pair, build_nli_pair
 from src.evaluation.error_analysis import categorize_example
-from src.evaluation.metrics import compute_metrics
+from src.evaluation.metrics import compute_metrics, print_report
 from src.models.llm_judge import _parse_verdict
+from src.models.llm_judge_groq import GROQ_MODEL, run_llm_judge_groq
 
 
 def test_build_nli_pair():
@@ -58,17 +59,32 @@ def test_parse_verdict_fallback_unstructured():
     assert label == 1
 
 
-if __name__ == "__main__":
-    import inspect
+def test_groq_judge_requires_api_key(monkeypatch):
+    import dotenv
 
-    tests = [obj for name, obj in list(globals().items()) if name.startswith("test_")]
-    failures = 0
-    for t in tests:
-        try:
-            t()
-            print(f"PASS {t.__name__}")
-        except AssertionError as e:
-            failures += 1
-            print(f"FAIL {t.__name__}: {e}")
-    print(f"\n{len(tests) - failures}/{len(tests)} passed")
-    sys.exit(1 if failures else 0)
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **k: None)
+    try:
+        run_llm_judge_groq(ds=[], limit=0)
+        assert False, "expected RuntimeError"
+    except RuntimeError as e:
+        assert "GROQ_API_KEY" in str(e)
+
+
+def test_groq_model_constant():
+    assert GROQ_MODEL == "llama-3.3-70b-versatile"
+
+
+def test_print_report_single_class_sample(capsys):
+    # Regression test: a sample with only one true/predicted class (e.g. a
+    # partial run cut short by a rate limit) must not crash sklearn's
+    # classification_report with a labels-mismatch ValueError.
+    print_report([1], [1], title="single-example sample")
+    captured = capsys.readouterr()
+    assert "Accuracy" in captured.out
+
+
+if __name__ == "__main__":
+    import pytest
+
+    sys.exit(pytest.main([__file__, "-v"]))

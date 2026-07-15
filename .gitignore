@@ -221,3 +221,6 @@ __marimo__/
 outputs/logs/
 data/*.csv
 data/*.parquet
+
+# Claude Code harness state (not project content)
+.claude/

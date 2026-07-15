@@ -167,12 +167,26 @@ explicitly.
 
 ---
 
-### Method 3: LLM-as-Judge [PLANNED]
+### Method 3: LLM-as-Judge [IMPLEMENTED]
 
 How it works:
-- Uses large models (Claude, GPT-4) as evaluators
-- Structured prompts with reasoning
-- Chain-of-thought analysis
+- Prompts a large instruction-following model as an evaluator
+- Structured prompt with rubric + 1-2 sentence chain-of-thought rationale
+- Response parsed to a binary faithful/hallucinated label
+
+Two backends, same prompt/rubric (`src/models/llm_judge.py::PROMPT_TEMPLATE`):
+- **Groq (free)** -- `src/models/llm_judge_groq.py`, `llama-3.3-70b-versatile` via
+  Groq's free API (get a key at console.groq.com). No cost, so it can run on
+  larger samples than the paid option -- but the free tier has a **daily
+  token quota (100k tokens/day)** in addition to the ~12,000/min and 1,000
+  requests/day limits; a few hundred judge calls in one day can exhaust it.
+  `run_llm_judge_groq()` catches this and returns whatever it completed
+  instead of losing the run (check `len(result.predictions)` against your
+  requested `limit`) -- `notebooks/03_llm_judge.ipynb` paces calls to stay
+  under the per-minute limit, but the daily cap needs multiple days (or a
+  paid Groq tier) to run the full 10,000-example set.
+- **Claude (paid)** -- `src/models/llm_judge.py`, requires `ANTHROPIC_API_KEY`
+  and costs money per call; not auto-run, start with a small sample.
 
 Approach:
 ```
@@ -184,16 +198,14 @@ Input:
 Output:
   - Faithful/Hallucinated label
   - Reasoning chain
-  - Confidence score
 ```
 
-Status: Planned for future work
-
-Expected Performance:
-- ~75%+ accuracy (estimated)
-- Better than NLI models
-- Higher inference cost
-- Useful for comparison/validation
+Result (Groq / llama-3.3-70b-versatile, n=20 validation sample -- see
+`outputs/tables/llm_judge_groq_results.json`): 85.0% accuracy, F1 = 0.842,
+comfortably above the zero-shot NLI baseline (68.8%). A 300-example run was
+attempted but hit the daily token quota at 260/300 examples; treat 85% as a
+small-sample directional estimate, not a final number, until run at larger
+scale across multiple days or on a paid tier.
 
 ---
 
@@ -542,7 +554,7 @@ A-Comparative-Study-of-Faithfulness-Detection-Methods/
 ├── notebooks/
 |   ├── 01_zero_shot_nli.ipynb        # Method 1: BART-MNLI, DeBERTa-MNLI, SummaC-Zero
 |   ├── 02_fine_tuning.ipynb          # Method 2: fixed DeBERTa-v3-small fine-tuning
-|   ├── 03_llm_judge.ipynb            # Method 3: Claude-based LLM-as-Judge (costs money, opt-in)
+|   ├── 03_llm_judge.ipynb            # Method 3: LLM-as-Judge (Groq, free; Claude, paid/opt-in)
 |   ├── 04_fever_cross_dataset.ipynb  # cross-domain generalization on FEVER
 |   └── 05_analysis.ipynb             # aggregate comparison + error analysis
 |
@@ -550,7 +562,8 @@ A-Comparative-Study-of-Faithfulness-Detection-Methods/
 |   ├── models/
 |   |   ├── zero_shot.py     # document-level + SummaC-Zero sentence-level NLI
 |   |   ├── fine_tune.py     # supervised fine-tuning (root-cause fix applied)
-|   |   └── llm_judge.py     # Claude-based judge, no auto-run (paid API)
+|   |   ├── llm_judge.py     # Claude-based judge, no auto-run (paid API)
+|   |   └── llm_judge_groq.py # Groq-based judge (free, same prompt/rubric)
 |   |
 |   ├── data/
 |   |   ├── loader.py        # HaluEval + FEVER loaders, label-convention notes
